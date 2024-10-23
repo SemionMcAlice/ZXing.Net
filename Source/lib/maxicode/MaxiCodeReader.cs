@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+using System;
 using System.Collections.Generic;
 
 using ZXing.Common;
@@ -67,6 +68,7 @@ namespace ZXing.Maxicode
                 return null;
 
             var result = new Result(decoderResult.Text, decoderResult.RawBytes, NO_POINTS, BarcodeFormat.MAXICODE);
+            result.putMetadata(ResultMetadataType.ERRORS_CORRECTED, decoderResult.ErrorsCorrected);
 
             var ecLevel = decoderResult.ECLevel;
             if (ecLevel != null)
@@ -106,14 +108,22 @@ namespace ZXing.Maxicode
             int width = enclosingRectangle[2];
             int height = enclosingRectangle[3];
 
+            // correct corner cases: the enclosing rectangle borders the right or bottom edge
+            if (left + width >= image.Width)
+                width = image.Width - left - 1;
+            if (top + height >= image.Height)
+                height = image.Height - top - 1;
+
             // Now just read off the bits
             BitMatrix bits = new BitMatrix(MATRIX_WIDTH, MATRIX_HEIGHT);
             for (int y = 0; y < MATRIX_HEIGHT; y++)
             {
-                int iy = top + (y * height + height / 2) / MATRIX_HEIGHT;
+                int iy = top + Math.Min((y * height + height / 2) / MATRIX_HEIGHT, height - 1);
                 for (int x = 0; x < MATRIX_WIDTH; x++)
                 {
-                    int ix = left + (x * width + width / 2 + (y & 0x01) * width / 2) / MATRIX_WIDTH;
+                    // srowen: I don't quite understand why the formula below is necessary, but it
+                    // can walk off the image if left + width = the right boundary. So cap it.
+                    int ix = left + Math.Min((x * width + width / 2 + (y & 0x01) * width / 2) / MATRIX_WIDTH, width - 1);
                     if (image[ix, iy])
                     {
                         bits[x, y] = true;

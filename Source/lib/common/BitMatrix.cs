@@ -24,19 +24,19 @@ namespace ZXing.Common
     /// module, x is the column position, and y is the row position. The ordering is always x, y.
     /// The origin is at the top-left.</p>
     ///   <p>Internally the bits are represented in a 1-D array of 32-bit ints. However, each row begins
-    /// with a new int. This is done intentionally so that we can copy out a row into a BitArray very
+    /// with a new int. This is done intentionally so that we can copy out a row into a <see cref="BitArray"/> very
     /// efficiently.</p>
     ///   <p>The ordering of bits is row-major. Within each int, the least significant bits are used first,
-    /// meaning they represent lower x values. This is compatible with BitArray's implementation.</p>
+    /// meaning they represent lower x values. This is compatible with <see cref="BitArray"/>'s implementation.</p>
     /// </summary>
     /// <author>Sean Owen</author>
     /// <author>dswitkin@google.com (Daniel Switkin)</author>
     public sealed partial class BitMatrix
     {
-        private readonly int width;
-        private readonly int height;
-        private readonly int rowSize;
-        private readonly int[] bits;
+        private int width;
+        private int height;
+        private int rowSize;
+        private int[] bits;
 
         /// <returns> The width of the matrix
         /// </returns>
@@ -268,6 +268,18 @@ namespace ZXing.Common
         }
 
         /// <summary>
+        /// <p>Flips every bit in the matrix.</p>
+        /// </summary>
+        public void flip()
+        {
+            int max = bits.Length;
+            for (int i = 0; i < max; i++)
+            {
+                bits[i] = ~bits[i];
+            }
+        }
+
+        /// <summary>
         /// flip all of the bits, if shouldBeFlipped is true for the coordinates
         /// </summary>
         /// <param name="shouldBeFlipped">should return true, if the bit at a given coordinate should be flipped</param>
@@ -395,6 +407,31 @@ namespace ZXing.Common
         }
 
         /// <summary>
+        /// Modifies this {@code BitMatrix} to represent the same but rotated the given degrees(0, 90, 180, 270)
+        /// </summary>
+        /// <param name="degrees">number of degrees to rotate through counter-clockwise(0, 90, 180, 270)</param>
+        /// <exception cref="ArgumentException"></exception>
+        public void rotate(int degrees)
+        {
+            switch (degrees % 360)
+            {
+                case 0:
+                    return;
+                case 90:
+                    rotate90();
+                    return;
+                case 180:
+                    rotate180();
+                    return;
+                case 270:
+                    rotate90();
+                    rotate180();
+                    return;
+            }
+            throw new ArgumentException("degrees must be a multiple of 0, 90, 180, or 270");
+        }
+
+        /// <summary>
         /// Modifies this {@code BitMatrix} to represent the same but rotated 180 degrees
         /// </summary>
         public void rotate180()
@@ -412,6 +449,34 @@ namespace ZXing.Common
                 setRow(i, bottomRow);
                 setRow(bottomRowIndex, topRow);
             }
+        }
+
+        /// <summary>
+        /// Modifies this {@code BitMatrix} to represent the same but rotated 90 degrees counterclockwise
+        /// </summary>
+        public void rotate90()
+        {
+            int newWidth = height;
+            int newHeight = width;
+            int newRowSize = (newWidth + 31) / 32;
+            int[] newBits = new int[newRowSize * newHeight];
+
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    int offset = y * rowSize + (x / 32);
+                    if ((((int)(((uint)bits[offset]) >> (x & 0x1f))) & 1) != 0)
+                    {
+                        int newOffset = (newHeight - 1 - x) * newRowSize + (y / 32);
+                        newBits[newOffset] |= 1 << (y & 0x1f);
+                    }
+                }
+            }
+            width = newWidth;
+            height = newHeight;
+            rowSize = newRowSize;
+            bits = newBits;
         }
 
         /// <summary>
@@ -591,11 +656,7 @@ namespace ZXing.Common
         /// </returns>
         public override String ToString()
         {
-#if WindowsCE
-         return ToString("X ", "  ", "\r\n");
-#else
             return ToString("X ", "  ", Environment.NewLine);
-#endif
         }
 
         /// <summary>
@@ -608,11 +669,7 @@ namespace ZXing.Common
         /// </returns>
         public String ToString(String setString, String unsetString)
         {
-#if WindowsCE
-         return buildToString(setString, unsetString, "\r\n");
-#else
             return buildToString(setString, unsetString, Environment.NewLine);
-#endif
         }
 
         /// <summary>

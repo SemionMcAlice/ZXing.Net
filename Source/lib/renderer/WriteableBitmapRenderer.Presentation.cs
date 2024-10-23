@@ -21,7 +21,13 @@ using System.Windows.Media.Imaging;
 
 using ZXing.Common;
 
+#if WINDOWS_COMPATIBILITY
+using ZXing.Rendering;
+
+namespace ZXing.Windows.Compatibility
+#else
 namespace ZXing.Rendering
+#endif
 {
     /// <summary>
     /// Renders a <see cref="BitMatrix" /> to a <see cref="WriteableBitmap" />
@@ -132,7 +138,7 @@ namespace ZXing.Rendering
             int emptyArea = outputContent ? 16 : 0;
             int pixelsize = 1;
 
-            if (options != null)
+            if (options != null && !options.NoPadding)
             {
                 if (options.Width > width)
                 {

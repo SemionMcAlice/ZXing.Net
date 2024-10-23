@@ -35,6 +35,25 @@ namespace ZXing.OneD
         protected abstract IList<BarcodeFormat> SupportedWriteFormats { get; }
 
         /// <summary>
+        /// Encode the contents to boolean array expression of one-dimensional barcode.
+        /// Start code and end code should be included in result, and side margins should not be included.
+        /// </summary>
+        /// <param name="contents">barcode contents to encode</param>
+        /// <returns>a <c>bool[]</c> of horizontal pixels (false = white, true = black)</returns>
+        public abstract bool[] encode(String contents);
+
+        /// <summary>
+        /// Can be overwritten if the encode requires to read the hints map. Otherwise it defaults to {@code encode}.
+        /// </summary>
+        /// <param name="contents">barcode contents to encode</param>
+        /// <param name="hints">encoding hints</param>
+        /// <returns>a <c>bool[]</c> of horizontal pixels (false = white, true = black)</returns>
+        public virtual bool[] encode(String contents, IDictionary<EncodeHintType, object> hints)
+        {
+            return encode(contents);
+        }
+
+        /// <summary>
         /// Encode a barcode using the default settings.
         /// </summary>
         /// <param name="contents">The contents to encode in the barcode</param>
@@ -75,7 +94,7 @@ namespace ZXing.OneD
             var supportedFormats = SupportedWriteFormats;
             if (supportedFormats != null && !supportedFormats.Contains(format))
             {
-#if WindowsCE || WINDOWS_PHONE70 || NET20 || NET35 || UNITY || PORTABLE
+#if NET20 || NET35 || UNITY || PORTABLE
                 var supportedFormatsArray = new string[supportedFormats.Count];
                 for (var i = 0; i < supportedFormats.Count; i++)
                     supportedFormatsArray[i] = supportedFormats[i].ToString();
@@ -86,6 +105,7 @@ namespace ZXing.OneD
             }
 
             int sidesMargin = DefaultMargin;
+            var noPadding = false;
             if (hints != null)
             {
                 var sidesMarginInt = hints.ContainsKey(EncodeHintType.MARGIN) ? hints[EncodeHintType.MARGIN] : null;
@@ -93,25 +113,36 @@ namespace ZXing.OneD
                 {
                     sidesMargin = Convert.ToInt32(sidesMarginInt);
                 }
+                var noPaddingObj = hints.ContainsKey(EncodeHintType.NO_PADDING) ? hints[EncodeHintType.NO_PADDING] : null;
+                if (noPaddingObj != null)
+                {
+                    bool.TryParse(noPaddingObj.ToString(), out noPadding);
+                }
             }
 
-            var code = encode(contents);
-            return renderResult(code, width, height, sidesMargin);
+            var code = encode(contents, hints);
+            return renderResult(code, width, height, sidesMargin, noPadding);
         }
 
         /// <summary>
         /// </summary>
         /// <returns>a byte array of horizontal pixels (0 = white, 1 = black)</returns>
-        private static BitMatrix renderResult(bool[] code, int width, int height, int sidesMargin)
+        private static BitMatrix renderResult(bool[] code, int width, int height, int sidesMargin, bool noPadding)
         {
             int inputWidth = code.Length;
             // Add quiet zone on both sides.
-            int fullWidth = inputWidth + sidesMargin;
+            int fullWidth = inputWidth + sidesMargin * 2;
             int outputWidth = Math.Max(width, fullWidth);
             int outputHeight = Math.Max(1, height);
 
             int multiple = outputWidth / fullWidth;
             int leftPadding = (outputWidth - (inputWidth * multiple)) / 2;
+
+            if (noPadding)
+            {
+                outputWidth = fullWidth * multiple;
+                leftPadding = sidesMargin * multiple;
+            }
 
             BitMatrix output = new BitMatrix(outputWidth, outputHeight);
             for (int inputX = 0, outputX = leftPadding; inputX < inputWidth; inputX++, outputX += multiple)
@@ -161,26 +192,25 @@ namespace ZXing.OneD
             return numAdded;
         }
 
+        private int defaultMargin = 10;
+
         /// <summary>
         /// Gets the default margin.
         /// </summary>
-        virtual public int DefaultMargin
+        public int DefaultMargin
         {
             get
             {
                 // CodaBar spec requires a side margin to be more than ten times wider than narrow space.
                 // This seems like a decent idea for a default for all formats.
-                return 10;
+                return defaultMargin;
+            }
+            internal set
+            {
+                // mainly for test cases
+                defaultMargin = value;
             }
         }
-
-        /// <summary>
-        /// Encode the contents to bool array expression of one-dimensional barcode.
-        /// Start code and end code should be included in result, and side margins should not be included.
-        /// </summary>
-        /// <param name="contents">barcode contents to encode</param>
-        /// <returns>a <c>bool[]</c> of horizontal pixels (false = white, true = black)</returns>
-        public abstract bool[] encode(String contents);
 
         /// <summary>
         /// Calculates the checksum digit modulo10.

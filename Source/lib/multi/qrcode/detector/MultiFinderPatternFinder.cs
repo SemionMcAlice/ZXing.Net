@@ -35,7 +35,7 @@ namespace ZXing.Multi.QrCode.Internal
     /// <author>Sean Owen</author>
     /// <author>Hannes Erven</author>
     /// </summary>
-    sealed class MultiFinderPatternFinder : FinderPatternFinder
+    public sealed class MultiFinderPatternFinder : FinderPatternFinder
     {
         private static readonly FinderPatternInfo[] EMPTY_RESULT_ARRAY = new FinderPatternInfo[0];
 
@@ -81,7 +81,7 @@ namespace ZXing.Multi.QrCode.Internal
         /// <param name="image">image to search</param>
         /// <param name="resultPointCallback">callback for result points</param>
         /// </summary>
-        internal MultiFinderPatternFinder(BitMatrix image, ResultPointCallback resultPointCallback)
+        public MultiFinderPatternFinder(BitMatrix image, ResultPointCallback resultPointCallback)
             : base(image, resultPointCallback)
         {
         }
@@ -94,7 +94,14 @@ namespace ZXing.Multi.QrCode.Internal
         /// </returns>
         private FinderPattern[][] selectMultipleBestPatterns()
         {
-            List<FinderPattern> possibleCenters = PossibleCenters;
+            var possibleCenters = new List<FinderPattern>();
+            foreach (var fp in PossibleCenters)
+            {
+                if (fp.Count >= 2)
+                {
+                    possibleCenters.Add(fp);
+                }
+            }
             int size = possibleCenters.Count;
 
             if (size < 3)
@@ -234,6 +241,11 @@ namespace ZXing.Multi.QrCode.Internal
             return null;
         }
 
+        /// <summary>
+        /// try to find patterns
+        /// </summary>
+        /// <param name="hints"></param>
+        /// <returns></returns>
         public FinderPatternInfo[] findMulti(IDictionary<DecodeHintType, object> hints)
         {
             bool tryHarder = hints != null && hints.ContainsKey(DecodeHintType.TRY_HARDER);

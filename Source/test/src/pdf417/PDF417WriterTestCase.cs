@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#if !SILVERLIGHT
-
 using System;
 using System.Collections.Generic;
 using System.Drawing.Imaging;
@@ -96,6 +94,7 @@ namespace ZXing.PDF417.Test
                 try
                 {
                     var bitmap = writer.Write(content);
+                    //bitmap.Save(String.Format("D:\\test-{0}.png", encodingStr), ImageFormat.Png);
                     var result = reader.Decode(bitmap);
                     if (result == null)
                         throw new InvalidOperationException("cant be decoded");
@@ -148,7 +147,7 @@ namespace ZXing.PDF417.Test
             }
             Console.WriteLine(content.ToString());
             var bitmap = writer.Write(content.ToString());
-            bitmap.Save(String.Format("D:\\test-{0}.png", encodingStr), ImageFormat.Png);
+            //bitmap.Save(String.Format("D:\\test-{0}.png", encodingStr), ImageFormat.Png);
             var result = reader.Decode(bitmap);
             if (result == null)
                 throw new InvalidOperationException("cant be decoded");
@@ -207,5 +206,3 @@ namespace ZXing.PDF417.Test
 
     }
 }
-
-#endif

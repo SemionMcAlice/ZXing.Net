@@ -24,6 +24,9 @@ namespace ZXing.Common
     /// <author>Sean Owen</author>
     public sealed class BitArray
     {
+        private static int[] EMPTY_BITS = { };
+        private static float LOAD_FACTOR = 0.75f;
+
         private int[] bits;
         private int size;
 
@@ -73,7 +76,7 @@ namespace ZXing.Common
         public BitArray()
         {
             this.size = 0;
-            this.bits = new int[1];
+            this.bits = EMPTY_BITS;
         }
 
         /// <summary>
@@ -97,11 +100,11 @@ namespace ZXing.Common
             this.size = size;
         }
 
-        private void ensureCapacity(int size)
+        private void ensureCapacity(int newSize)
         {
-            if (size > bits.Length << 5)
+            if (newSize > bits.Length << 5)
             {
-                int[] newBits = makeArray(size);
+                int[] newBits = makeArray((int)Math.Ceiling(newSize / LOAD_FACTOR));
                 System.Array.Copy(bits, 0, newBits, 0, bits.Length);
                 bits = newBits;
             }
@@ -313,11 +316,17 @@ namespace ZXing.Common
             {
                 throw new ArgumentException("Num bits must be between 0 and 32");
             }
-            ensureCapacity(size + numBits);
-            for (int numBitsLeft = numBits; numBitsLeft > 0; numBitsLeft--)
+            int nextSize = size;
+            ensureCapacity(nextSize + numBits);
+            for (int numBitsLeft = numBits - 1; numBitsLeft >= 0; numBitsLeft--)
             {
-                appendBit(((value >> (numBitsLeft - 1)) & 0x01) == 1);
+                if ((value & (1 << numBitsLeft)) != 0)
+                {
+                    bits[nextSize / 32] |= 1 << (nextSize & 0x1F);
+                }
+                nextSize++;
             }
+            size = nextSize;
         }
 
         /// <summary>
@@ -344,7 +353,12 @@ namespace ZXing.Common
             {
                 throw new ArgumentException("Sizes don't match");
             }
-            for (int i = 0; i < bits.Length; i++)
+
+            var numberOfInts = bits.Length;
+            if (other.bits.Length < numberOfInts)
+                numberOfInts = other.bits.Length;
+
+            for (int i = 0; i < numberOfInts; i++)
             {
                 // The last int could be incomplete (i.e. not have 32 bits in
                 // it) but there is no problem since 0 XOR 0 == 0.

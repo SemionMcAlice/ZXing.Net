@@ -104,7 +104,7 @@ namespace ZXing.Windows.Compatibility
         /// <param name="content">The content.</param>
         /// <param name="options">The options.</param>
         /// <returns></returns>
-        public Bitmap Render(BitMatrix matrix, BarcodeFormat format, string content, EncodingOptions options)
+        virtual public Bitmap Render(BitMatrix matrix, BarcodeFormat format, string content, EncodingOptions options)
         {
             var width = matrix.Width;
             var height = matrix.Height;
@@ -125,7 +125,7 @@ namespace ZXing.Windows.Compatibility
                                  format == BarcodeFormat.MSI ||
                                  format == BarcodeFormat.PLESSEY);
 
-            if (options != null)
+            if (options != null && !options.NoPadding)
             {
                 if (options.Width > width)
                 {
@@ -209,7 +209,7 @@ namespace ZXing.Windows.Compatibility
                     {
                         var textAreaHeight = font.Height;
 
-                        emptyArea = height + 10 > textAreaHeight ? textAreaHeight : 0;
+                        emptyArea = height > textAreaHeight ? textAreaHeight : 0;
 
                         if (emptyArea > 0)
                         {

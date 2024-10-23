@@ -53,8 +53,7 @@ namespace WindowsFormsDemo
             barcodeReader = new BarcodeReader(null, null, source => UseGlobalHistogramBinarizer ? new GlobalHistogramBinarizer(source) : new HybridBinarizer(source))
             {
                 AutoRotate = true,
-                TryInverted = true,
-                Options = new DecodingOptions { TryHarder = true }
+                Options = new DecodingOptions { TryHarder = true, TryInverted = true }
             };
             barcodeReader.ResultPointFound += point =>
             {
@@ -265,6 +264,7 @@ namespace WindowsFormsDemo
             if (bitmap == null)
                 return;
             var reader = new BarcodeReader();
+            reader.Options = barcodeReader.Options;
             var result = reader.Decode(bitmap);
             if (result != null)
             {
@@ -277,22 +277,39 @@ namespace WindowsFormsDemo
         {
             try
             {
-                var writer = new BarcodeWriter
-                {
-                    Format = (BarcodeFormat)cmbEncoderType.SelectedItem,
-                    Options = EncodingOptions ?? new EncodingOptions
-                    {
-                        Height = picEncodedBarCode.Height,
-                        Width = picEncodedBarCode.Width
-                    },
-                    Renderer = (IBarcodeRenderer<Bitmap>)Activator.CreateInstance(Renderer)
-                };
-                picEncodedBarCode.Image = writer.Write(txtEncoderContent.Text);
+                RenderString();
+                RenderBitmap();
             }
             catch (Exception exc)
             {
                 MessageBox.Show(this, exc.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        private void RenderString()
+        {
+            var writer = new BarcodeWriter<string>
+            {
+                Format = (BarcodeFormat)cmbEncoderType.SelectedItem,
+                Renderer = new StringRenderer() //.Render(txtEncoderContent.Text);
+            };
+            var str = writer.Write(txtEncoderContent.Text);
+            Clipboard.SetText(str);
+        }
+
+        private void RenderBitmap()
+        {
+            var writer = new BarcodeWriter
+            {
+                Format = (BarcodeFormat)cmbEncoderType.SelectedItem,
+                Options = EncodingOptions ?? new EncodingOptions
+                {
+                    Height = picEncodedBarCode.Height,
+                    Width = picEncodedBarCode.Width
+                },
+                Renderer = (IBarcodeRenderer<Bitmap>)Activator.CreateInstance(Renderer)
+            };
+            picEncodedBarCode.Image = writer.Write(txtEncoderContent.Text);
         }
 
         private void btnEncoderSave_Click(object sender, EventArgs e)
@@ -479,7 +496,7 @@ namespace WindowsFormsDemo
                 Thread.Sleep(1000);
                 picBarcode.Image = ScreenCapture.CaptureScreen();
                 Visible = true;
-                Decode(new[] { (Bitmap)picBarcode.Image }, false, null);
+                Decode(new[] { (Bitmap)picBarcode.Image }, TryMultipleBarcodes, null);
             }
             catch (Exception exc)
             {

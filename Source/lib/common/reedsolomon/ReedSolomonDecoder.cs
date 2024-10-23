@@ -60,9 +60,25 @@ namespace ZXing.Common.ReedSolomon
         /// <returns>false: decoding fails</returns>
         public bool decode(int[] received, int twoS)
         {
+            var errorsCorrected = 0;
+            return decodeWithECCount(received, twoS, out errorsCorrected);
+        }
+
+        /// <summary>
+        /// Decodes given set of received codewords, which include both data and error-correction
+        /// codewords.Really, this means it uses Reed-Solomon to detect and correct errors, in-place,
+        /// in the input.
+        /// </summary>
+        /// <param name="received">data and error-correction codewords</param>
+        /// <param name="twoS">number of error-correction codewords available</param>
+        /// <param name="errorsCorrected">the number of errors corrected</param>
+        /// <returns>false: decoding fails</returns>
+        public bool decodeWithECCount(int[] received, int twoS, out int errorsCorrected)
+        {
             var poly = new GenericGFPoly(field, received);
             var syndromeCoefficients = new int[twoS];
             var noError = true;
+            errorsCorrected = 0;
             for (var i = 0; i < twoS; i++)
             {
                 var eval = poly.evaluateAt(field.exp(i + field.GeneratorBase));
@@ -99,7 +115,7 @@ namespace ZXing.Common.ReedSolomon
                 }
                 received[position] = GenericGF.addOrSubtract(received[position], errorMagnitudes[i]);
             }
-
+            errorsCorrected = errorLocations.Length;
             return true;
         }
 
@@ -119,7 +135,7 @@ namespace ZXing.Common.ReedSolomon
             GenericGFPoly t = field.One;
 
             // Run Euclidean algorithm until r's degree is less than R/2
-            while (r.Degree >= R / 2)
+            while (2 * r.Degree >= R)
             {
                 GenericGFPoly rLastLast = rLast;
                 GenericGFPoly tLastLast = tLast;
@@ -149,7 +165,7 @@ namespace ZXing.Common.ReedSolomon
 
                 if (r.Degree >= rLast.Degree)
                 {
-                    // throw new IllegalStateException("Division algorithm failed to reduce polynomial?");
+                    // throw new IllegalStateException("Division algorithm failed to reduce polynomial? " + "r: " + r + ", rLast: " + rLast);
                     return null;
                 }
             }

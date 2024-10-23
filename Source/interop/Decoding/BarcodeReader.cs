@@ -33,6 +33,7 @@ namespace ZXing.Interop.Decoding
     public class BarcodeReader : IBarcodeReader
     {
         private readonly ZXing.BarcodeReader wrappedReader;
+        private DecodingOptions decodingOptions;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="BarcodeReader"/> class.
@@ -40,12 +41,13 @@ namespace ZXing.Interop.Decoding
         public BarcodeReader()
         {
             wrappedReader = new ZXing.BarcodeReader();
+            decodingOptions = new DecodingOptions(wrappedReader.Options);
         }
 
         public DecodingOptions Options
         {
-            get { return new DecodingOptions(wrappedReader.Options); }
-            set { wrappedReader.Options = value.wrappedDecodingOptions; }
+            get { return decodingOptions; }
+            set { decodingOptions = value; wrappedReader.Options = value.wrappedDecodingOptions; }
         }
 
         public Result DecodeImageBytes([In, MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_UI1)]ref byte[] rawRGB,
@@ -53,7 +55,14 @@ namespace ZXing.Interop.Decoding
            [In] int height,
            [In] BitmapFormat format)
         {
-            return new Result(wrappedReader.Decode(rawRGB, width, height, format.ToZXing()));
+            try
+            {
+                return new Result(wrappedReader.Decode(rawRGB, width, height, format.ToZXing()));
+            }
+            catch (Exception e)
+            {
+                return new Result(e);
+            }
         }
 
         public Result[] DecodeImageBytesMultiple([In, MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_UI1)]ref byte[] rawRGB,
@@ -61,8 +70,15 @@ namespace ZXing.Interop.Decoding
             [In] int height,
             [In] BitmapFormat format)
         {
-            var results = wrappedReader.DecodeMultiple(rawRGB, width, height, format.ToZXing());
-            return results?.Select(_ => new Result(_)).ToArray();
+            try
+            {
+                var results = wrappedReader.DecodeMultiple(rawRGB, width, height, format.ToZXing());
+                return results?.Select(_ => new Result(_)).ToArray();
+            }
+            catch (Exception e)
+            {
+                return new Result[] { new Result(e) };
+            }
         }
 
         public Result DecodeImageFile(String barcodeBitmapFilePath)
@@ -74,9 +90,9 @@ namespace ZXing.Interop.Decoding
                     return new Result(wrappedReader.Decode(bitmap));
                 }
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                return null;
+                return new Result(e);
             }
         }
 
@@ -90,9 +106,9 @@ namespace ZXing.Interop.Decoding
                     return results?.Select(_ => new Result(_)).ToArray();
                 }
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                return null;
+                return new[] { new Result(e) };
             }
         }
     }
